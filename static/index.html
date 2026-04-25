@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Melbourne House Price Predictor | SVR Model</title>
+    <meta name="description"
+        content="Predict Melbourne house prices using a trained Support Vector Regression model with PCA dimensionality reduction.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0e1a;
+            --bg-secondary: #111827;
+            --bg-card: rgba(17, 24, 39, 0.7);
+            --bg-glass: rgba(255, 255, 255, 0.04);
+            --border-glass: rgba(255, 255, 255, 0.08);
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent-1: #6366f1;
+            --accent-2: #8b5cf6;
+            --accent-gradient: linear-gradient(135deg, #6366f1, #8b5cf6, #a855f7);
+            --success: #10b981;
+            --success-bg: rgba(16, 185, 129, 0.1);
+            --gold: #f59e0b;
+            --gold-bg: rgba(245, 158, 11, 0.1);
+            --input-bg: rgba(255, 255, 255, 0.05);
+            --input-border: rgba(255, 255, 255, 0.1);
+            --input-focus: rgba(99, 102, 241, 0.4);
+            --shadow-lg: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            --shadow-glow: 0 0 40px rgba(99, 102, 241, 0.15);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Animated background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background:
+                radial-gradient(ellipse 600px 400px at 20% 20%, rgba(99, 102, 241, 0.08), transparent),
+                radial-gradient(ellipse 500px 300px at 80% 80%, rgba(139, 92, 246, 0.06), transparent),
+                radial-gradient(ellipse 400px 400px at 50% 50%, rgba(168, 85, 247, 0.04), transparent);
+            z-index: 0;
+            animation: bgPulse 8s ease-in-out infinite alternate;
+        }
+
+        @keyframes bgPulse {
+            0% {
+                opacity: 0.7;
+            }
+
+            100% {
+                opacity: 1;
+            }
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: 2.5rem;
+        }
+
+        .header-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--bg-glass);
+            border: 1px solid var(--border-glass);
+            border-radius: 20px;
+            padding: 6px 16px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--accent-2);
+            margin-bottom: 1rem;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .header-badge .dot {
+            width: 6px;
+            height: 6px;
+            background: var(--success);
+            border-radius: 50%;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+
+            50% {
+                opacity: 0.5;
+                transform: scale(0.8);
+            }
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+            line-height: 1.2;
+        }
+
+        .subtitle {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            font-weight: 400;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* Model stats bar */
+        .stats-bar {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin: 1.5rem 0 2rem;
+            flex-wrap: wrap;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--accent-2);
+        }
+
+        .stat-label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 2px;
+        }
+
+        /* Main card */
+        .main-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border-glass);
+            border-radius: 24px;
+            padding: 2.5rem;
+            box-shadow: var(--shadow-lg), var(--shadow-glow);
+        }
+
+        .section-title {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 1.25rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border-glass);
+        }
+
+        /* Form grid */
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1.25rem;
+            margin-bottom: 2rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group.span-2 {
+            grid-column: span 2;
+        }
+
+        label {
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+
+        input,
+        select {
+            background: var(--input-bg);
+            border: 1px solid var(--input-border);
+            border-radius: 12px;
+            padding: 12px 16px;
+            font-size: 0.95rem;
+            color: var(--text-primary);
+            font-family: 'Inter', sans-serif;
+            transition: all 0.2s ease;
+            outline: none;
+        }
+
+        input:focus,
+        select:focus {
+            border-color: var(--accent-1);
+            box-shadow: 0 0 0 3px var(--input-focus);
+        }
+
+        input:hover,
+        select:hover {
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        select {
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%2394a3b8' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 14px center;
+            padding-right: 36px;
+        }
+
+        select option {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+
+        /* Submit button */
+        .submit-section {
+            display: flex;
+            justify-content: center;
+            margin-top: 0.5rem;
+        }
+
+        .btn-predict {
+            background: var(--accent-gradient);
+            border: none;
+            border-radius: 14px;
+            padding: 16px 48px;
+            font-size: 1rem;
+            font-weight: 600;
+            color: white;
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            transition: all 0.3s ease;
+            letter-spacing: 0.3px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-predict:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 30px rgba(99, 102, 241, 0.35);
+        }
+
+        .btn-predict:active {
+            transform: translateY(0);
+        }
+
+        .btn-predict.loading {
+            pointer-events: none;
+            opacity: 0.8;
+        }
+
+        .btn-predict.loading::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+            animation: shimmer 1.5s infinite;
+        }
+
+        @keyframes shimmer {
+            to {
+                left: 100%;
+            }
+        }
+
+        /* Result section */
+        .result-section {
+            margin-top: 2rem;
+            display: none;
+            animation: fadeSlideUp 0.5s ease-out;
+        }
+
+        .result-section.visible {
+            display: block;
+        }
+
+        @keyframes fadeSlideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .result-card {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.08));
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 20px;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .result-label {
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 0.5rem;
+        }
+
+        .result-price {
+            font-size: 3rem;
+            font-weight: 800;
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1.1;
+            margin-bottom: 0.5rem;
+        }
+
+        .result-range {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 1.5rem;
+        }
+
+        .result-meta {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .meta-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--bg-glass);
+            border: 1px solid var(--border-glass);
+            border-radius: 8px;
+            padding: 6px 14px;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .meta-chip .meta-icon {
+            font-size: 0.85rem;
+        }
+
+        /* Error */
+        .error-msg {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 12px;
+            padding: 1rem 1.5rem;
+            color: #fca5a5;
+            font-size: 0.9rem;
+            margin-top: 1.5rem;
+            display: none;
+        }
+
+        .error-msg.visible {
+            display: block;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            margin-top: 2rem;
+            padding: 1.5rem;
+            color: var(--text-muted);
+            font-size: 0.75rem;
+        }
+
+        .footer a {
+            color: var(--accent-2);
+            text-decoration: none;
+        }
+
+        /* Input range hint */
+        .input-hint {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 1.8rem;
+            }
+
+            .main-card {
+                padding: 1.5rem;
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .form-group.span-2 {
+                grid-column: span 2;
+            }
+
+            .result-price {
+                font-size: 2.2rem;
+            }
+
+            .stats-bar {
+                gap: 1.2rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .form-group.span-2 {
+                grid-column: span 1;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-badge">
+                <span class="dot"></span>
+                Model Active
+            </div>
+            <h1>Melbourne House Price Predictor</h1>
+            <p class="subtitle">
+                Powered by Support Vector Regression with PCA dimensionality reduction,
+                trained on 10,864 Melbourne property records.
+            </p>
+            <div class="stats-bar">
+                <div class="stat-item">
+                    <div class="stat-value">82.0%</div>
+                    <div class="stat-label">R-squared</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">14.67%</div>
+                    <div class="stat-label">Prediction Error (MAPE)</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">3.74%</div>
+                    <div class="stat-label">PCA Data Loss</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">RBF</div>
+                    <div class="stat-label">Kernel</div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Form Card -->
+        <div class="main-card">
+            <form id="predictForm" onsubmit="handleSubmit(event)">
+                <!-- Property Details -->
+                <div class="section-title">Property Details</div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="rooms">Rooms</label>
+                        <input type="number" id="rooms" name="rooms" value="3" min="1" max="12" required>
+                        <span class="input-hint">1 - 12</span>
+                    </div>
+                    <div class="form-group">
+                        <label for="bathroom">Bathrooms</label>
+                        <input type="number" id="bathroom" name="bathroom" value="1" min="0" max="8" required>
+                        <span class="input-hint">0 - 8</span>
+                    </div>
+                    <div class="form-group">
+                        <label for="car">Car Spaces</label>
+                        <input type="number" id="car" name="car" value="2" min="0" max="10" required>
+                        <span class="input-hint">0 - 10</span>
+                    </div>
+                    <div class="form-group">
+                        <label for="property_type">Property Type</label>
+                        <select id="property_type" name="property_type" required>
+                            <option value="h" selected>House</option>
+                            <option value="t">Townhouse</option>
+                            <option value="u">Unit / Apartment</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Size & Age -->
+                <div class="section-title">Size & Age</div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="landsize">Land Size (sqm)</label>
+                        <input type="number" id="landsize" name="landsize" value="500" min="0" max="5000" step="10"
+                            required>
+                        <span class="input-hint">Typical: 200 - 2000</span>
+                    </div>
+                    <div class="form-group">
+                        <label for="building_area">Building Area (sqm)</label>
+                        <input type="number" id="building_area" name="building_area" value="130" min="10" max="500"
+                            step="5" required>
+                        <span class="input-hint">Typical: 80 - 400</span>
+                    </div>
+                    <div class="form-group">
+                        <label for="year_built">Year Built</label>
+                        <input type="number" id="year_built" name="year_built" value="1970" min="1830" max="2025"
+                            required>
+                        <span class="input-hint">1830 - 2025</span>
+                    </div>
+                    <div class="form-group">
+                        <label for="distance">Distance to CBD (km)</label>
+                        <input type="number" id="distance" name="distance" value="10" min="0" max="50" step="0.5"
+                            required>
+                        <span class="input-hint">0 (CBD) - 50</span>
+                    </div>
+                </div>
+
+                <!-- Location & Sale -->
+                <div class="section-title">Location & Sale</div>
+                <div class="form-grid">
+                    <div class="form-group span-2">
+                        <label for="region">Region</label>
+                        <select id="region" name="region" required>
+                            <option value="Southern Metropolitan" selected>Southern Metropolitan</option>
+                            <option value="Northern Metropolitan">Northern Metropolitan</option>
+                            <option value="Western Metropolitan">Western Metropolitan</option>
+                            <option value="Eastern Metropolitan">Eastern Metropolitan</option>
+                            <option value="South-Eastern Metropolitan">South-Eastern Metropolitan</option>
+                            <option value="Eastern Victoria">Eastern Victoria</option>
+                            <option value="Northern Victoria">Northern Victoria</option>
+                            <option value="Western Victoria">Western Victoria</option>
+                        </select>
+                    </div>
+                    <div class="form-group span-2">
+                        <label for="method">Sale Method</label>
+                        <select id="method" name="method" required>
+                            <option value="S" selected>Sold at Auction</option>
+                            <option value="SP">Sold Prior to Auction</option>
+                            <option value="PI">Passed In</option>
+                            <option value="VB">Vendor Bid</option>
+                            <option value="SA">Sold After Auction</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Submit -->
+                <div class="submit-section">
+                    <button type="submit" class="btn-predict" id="btnPredict">
+                        Predict Price
+                    </button>
+                </div>
+            </form>
+
+            <!-- Result -->
+            <div class="result-section" id="resultSection">
+                <div class="result-card">
+                    <div class="result-label">Estimated Price</div>
+                    <div class="result-price" id="resultPrice">$0</div>
+                    <div class="result-range" id="resultRange">Confidence range: $0 - $0</div>
+                    <div class="result-meta">
+                        <div class="meta-chip">
+                            <span class="meta-icon">&#9881;</span>
+                            SVR (RBF Kernel)
+                        </div>
+                        <div class="meta-chip">
+                            <span class="meta-icon">&#9733;</span>
+                            <span id="metaR2">R2 = 0.818</span>
+                        </div>
+                        <div class="meta-chip">
+                            <span class="meta-icon">&#8596;</span>
+                            <span id="metaComponents">18 PCA Components</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Error -->
+            <div class="error-msg" id="errorMsg"></div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>Melbourne House Price Predictor &mdash; Final Project in Data Computation</p>
+            <p style="margin-top:4px;">
+                SVR Model trained on the Melbourne Housing Snapshot dataset |
+                Pipeline: StandardScaler &rarr; PCA(18) &rarr; SVR(RBF)
+            </p>
+        </footer>
+    </div>
+
+    <script>
+        async function handleSubmit(e) {
+            e.preventDefault();
+
+            const btn = document.getElementById('btnPredict');
+            const resultSection = document.getElementById('resultSection');
+            const errorMsg = document.getElementById('errorMsg');
+
+            // Reset
+            resultSection.classList.remove('visible');
+            errorMsg.classList.remove('visible');
+            btn.classList.add('loading');
+            btn.textContent = 'Predicting...';
+
+            // Gather form data
+            const payload = {
+                rooms: parseInt(document.getElementById('rooms').value),
+                property_type: document.getElementById('property_type').value,
+                method: document.getElementById('method').value,
+                distance: parseFloat(document.getElementById('distance').value),
+                bathroom: parseInt(document.getElementById('bathroom').value),
+                car: parseInt(document.getElementById('car').value),
+                landsize: parseFloat(document.getElementById('landsize').value),
+                building_area: parseFloat(document.getElementById('building_area').value),
+                year_built: parseInt(document.getElementById('year_built').value),
+                region: document.getElementById('region').value,
+            };
+
+            try {
+                const resp = await fetch('/predict', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+
+                const data = await resp.json();
+
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                // Show result with animation
+                document.getElementById('resultPrice').textContent = data.formatted_price;
+                document.getElementById('resultRange').textContent =
+                    `Confidence range: ${data.confidence_range.low} \u2014 ${data.confidence_range.high}`;
+                document.getElementById('metaR2').textContent = `R\u00B2 = ${data.model_info.r2_score}`;
+                document.getElementById('metaComponents').textContent =
+                    `${data.model_info.components} PCA Components`;
+
+                // Trigger re-animation
+                resultSection.classList.remove('visible');
+                void resultSection.offsetHeight;  // Force reflow
+                resultSection.classList.add('visible');
+
+            } catch (err) {
+                errorMsg.textContent = `Prediction failed: ${err.message}`;
+                errorMsg.classList.add('visible');
+            } finally {
+                btn.classList.remove('loading');
+                btn.textContent = 'Predict Price';
+            }
+        }
+    </script>
+</body>
+
+</html>
